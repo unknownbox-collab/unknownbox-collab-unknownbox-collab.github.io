@@ -1,0 +1,388 @@
+<html>
+    <head>
+        <title>PING-PONG</title>
+        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+        <script type="text/javascript" scr="https://github.com/mini2317/mini2317.github.io/blob/master/key.js"></script>
+        <script>
+            function getRandomInt(min, max) {
+                min = Math.ceil(min);
+                max = Math.floor(max);
+                return Math.floor(Math.random() * (max - min)) + min; //최댓값은 제외, 최솟값은 포함
+            }
+            var KEYCODE={
+                BackSpace : 8,
+                Tab : 9,
+                Enter : 13,
+                Shift : 16,
+                Ctrl : 17,
+                Alt : 18,
+                Pause : 19,
+                Break : 19,
+                CapsLock : 20,
+                Esc : 27,
+                PageUp : 33,
+                PageDown : 34,
+                End : 35,
+                Home : 36,
+                Left : 37,
+                Up : 38,
+                Right : 39,
+                Down : 40,
+                Insert : 45,
+                Delete : 46,
+                0 : 48,
+                1 : 49,
+                2 : 50,
+                3 : 51,
+                4 : 52,
+                5 : 53,
+                6 : 54,
+                7 : 55,
+                8 : 56,
+                9 : 57,
+                a : 65,
+                b : 66,
+                c : 67,
+                d : 68,
+                e : 69,
+                f : 70,
+                g : 71,
+                h : 72,
+                i : 73,
+                j : 74,
+                k : 75,
+                l : 76,
+                m : 77,
+                n : 78,
+                o : 79,
+                p : 80,
+                q : 81,
+                r : 82,
+                s : 83,
+                t : 84,
+                u : 85,
+                v : 86,
+                w : 87,
+                x : 88,
+                y : 89,
+                z : 90,
+                Windows : 91,
+                RightClick : 92,
+                F1 : 112,
+                F2 : 113,
+                F3 : 114,
+                F4 : 115,
+                F5 : 116,
+                F6 : 117,
+                F7 : 118,
+                F8 : 119,
+                F9 : 120,
+                F10 : 121,
+                F11 : 122,
+                F12 : 123,
+                NumLock : 144,
+                ScrollLock : 145
+            };
+            var Key={
+                BackSpace : false,
+                Tab : false,
+                Enter : false,
+                Shift : false,
+                Ctrl : false,
+                Alt : false,
+                Pause : false,
+                Break : false,
+                CapsLock : false,
+                Esc : false,
+                PageUp : false,
+                PageDown : false,
+                End : false,
+                Home : false,
+                Left : false,
+                Up : false,
+                Right : false,
+                Down : false,
+                Insert : false,
+                Delete : false,
+                0 : false,
+                1 : false,
+                2 : false,
+                3 : false,
+                4 : false,
+                5 : false,
+                6 : false,
+                7 : false,
+                8 : false,
+                9 : false,
+                a : false,
+                b : false,
+                c : false,
+                d : false,
+                e : false,
+                f : false,
+                g : false,
+                h : false,
+                i : false,
+                j : false,
+                k : false,
+                l : false,
+                m : false,
+                n : false,
+                o : false,
+                p : false,
+                q : false,
+                r : false,
+                s : false,
+                t : false,
+                u : false,
+                v : false,
+                w : false,
+                x : false,
+                y : false,
+                z : false,
+                Windows : false,
+                RightClick : false,
+                F1 : false,
+                F2 : false,
+                F3 : false,
+                F4 : false,
+                F5 : false,
+                F6 : false,
+                F7 : false,
+                F8 : false,
+                F9 : false,
+                F10 : false,
+                F11 : false,
+                F12 : false,
+                NumLock : false,
+                ScrollLock : false
+            };
+            var cursor={
+                x : 0,
+                y : 0,
+                click:false
+            };
+            window.addEventListener('mousemove',function(e){
+                cursor.x = e.x-document.getElementById("main").getBoundingClientRect().left;
+                cursor.y = e.y-document.getElementById("main").getBoundingClientRect().top;
+            });
+            $(document).click(function (evt) {
+                cursor.click = true;
+            })
+            $(document).keydown(function(e) {
+                for (var i = 0; i < Object.keys(Key).length; i++) {
+                    if (e.keyCode == KEYCODE[Object.keys(KEYCODE)[i]]) {
+                        Key[Object.keys(KEYCODE)[i]] = true;
+                    }
+                }
+            }).keyup(function(e) {
+                for (var i = 0; i < Object.keys(Key).length; i++) {
+                    if (e.keyCode == KEYCODE[Object.keys(KEYCODE)[i]]) {
+                        Key[Object.keys(KEYCODE)[i]] = false;
+                    }
+                }
+            });
+            class Element{
+                constructor(x, y, width, height){
+                    this.x = x
+                    this.y = y
+                    this.width = width
+                    this.height = height
+                }
+            
+                static ParseToRadian(degree){
+                    return Math.PI*(degree-90)/180
+                }
+            
+                static moveTo(x,y,delta,degree){
+                    return {x:x + Math.cos(this.ParseToRadian(degree))*delta, y:y + Math.sin(this.ParseToRadian(degree))*delta}
+                }
+
+                draw(){}
+            }
+            
+            class Bar extends Element{
+                constructor(x,y,width,height,control_up,control_down){
+                    super(x,y,width,height)
+                    this.control = {
+                        up : control_up,
+                        down : control_down
+                    };
+                }
+
+                draw(){
+                    var canvas = document.getElementById("main");
+                    var ctx = canvas.getContext("2d");
+                    ctx.beginPath();
+                    ctx.fillStyle = "#FFFFFF";
+                    ctx.strokeStyle = "#FFFFFF";
+                    ctx.fillRect(this.x - this.width/2, this.y - this.height/2, this.width,this.height);
+                    ctx.stroke();
+                }
+
+                move(){
+                    if(Key[this.control.up]){
+                        if (this.y - this.height/2 >= 10){
+                            this.y -= 10;
+                        }
+                    }
+                    if(Key[this.control.down]){
+                        if(this.y + this.height/2 < 490){
+                            this.y += 10;
+                        }
+                    }
+                }
+            }
+
+            class Ball extends Element{
+                constructor(x,y,degree,speed){
+                    super(x,y,25,25)
+                    this.degree = degree
+                    this.speed = speed
+                    this.bounced = 0
+                }
+            
+                draw(){
+                    var canvas = document.getElementById("main");
+                    var ctx = canvas.getContext("2d");
+                    ctx.beginPath();
+                    ctx.fillStyle = "#FFFFFF";
+                    ctx.strokeStyle = "#FFFFFF";
+                    ctx.arc(this.x, this.y, this.width/2, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.stroke();
+                }
+
+                move(){
+                    let moved = Element.moveTo(this.x,this.y,this.speed,this.degree);
+                    this.x = moved.x;
+                    this.y = moved.y;
+                    if(this.y + this.height/2 >= 500){
+                        this.y = 500 - this.height/2;
+                        this.degree = - this.degree + 180;
+                        this.move();
+                    }
+
+                    if(this.y - this.height/2 <= 0){
+                        this.y =  this.height/2;
+                        this.degree = - this.degree + 180;
+                        this.move();
+                    }
+
+                }
+
+                collision(...bars){
+                    bars.forEach(element => {
+                        if (this.IsCollisedWithBar(element)){
+                            let moved = Element.moveTo(this.x,this.y,this.speed,this.degree + 180);
+                            this.x = moved.x;
+                            this.y = moved.y;
+                            this.degree = 180 + this.degree + getRandomInt(-45,45);
+                            moved = Element.moveTo(this.x,this.y,this.speed,this.degree);
+                            this.x = moved.x;
+                            this.y = moved.y;
+                            this.bounced += 1;
+                            this.speed = 10 + 10 * Math.log10(this.bounced);
+                            console.log(this.speed);
+                            return
+                        }
+                    });
+                }
+
+                IsPointInCircle(x,y){
+                    if (Math.sqrt((x-this.x)**2+(y-this.y)**2) <= this.width/2){
+                        return true
+                    }
+                }
+
+                IsCollisedWithBar(object){
+                    object = {
+                        left : object.x - object.width/2 - this.width/2,
+                        right : object.x + object.width/2 + this.width/2,
+                        top : object.y - object.height/2 - this.height/2,
+                        bottom : object.y + object.height/2 + this.height/2
+                    };
+                    if ((object.left <= this.x && object.right >= this.x) &&
+                        (object.top <= this.y && object.bottom >= this.y)){
+                            return true
+                    }
+                    if (this.IsPointInCircle(object.left,object.top)||
+                        this.IsPointInCircle(object.right,object.top)||
+                        this.IsPointInCircle(object.left,object.bottom)||
+                        this.IsPointInCircle(object.right,object.bottom)){
+                            return true
+                    }
+                    return false
+                }
+            
+            }
+
+            function init(){
+                var canvas = document.getElementById("main");
+                var ctx = canvas.getContext("2d");
+                score = [0,0]
+                ball = new Ball(500,250,45,10);
+                player1 = new Bar(50,250,30,130,'w','s');
+                player2 = new Bar(950,250,30,130,'Up','Down');
+                ctx.beginPath();
+                ctx.fillStyle = "#000000";
+                ctx.strokeStyle = "#000000";
+                ctx.fillRect(0, 0, 1000, 500);
+                ctx.stroke();
+                requestAnimationFrame(main);
+            }
+
+            function main(){
+                var canvas = document.getElementById("main");
+                var ctx = canvas.getContext("2d");
+                ctx.beginPath();
+                ctx.fillStyle = "#000000";
+                ctx.strokeStyle = "#000000";
+                ctx.fillRect(0, 0, 1000, 500);
+                ctx.stroke();
+                player1.move();
+                player2.move();
+                ball.collision(player1,player2);
+                ball.move();
+                if (ball.x - ball.width/2 <= 0){
+                    ball = new Ball(500,250,45,10);
+                    score[1] += 1;
+                }else if(ball.x + ball.width/2 >= 1000){
+                    ball = new Ball(500,250,45,10);
+                    score[0] += 1;
+                }
+                if (!(score.includes(5))){
+                    ball.draw();
+                    player1.draw();
+                    player2.draw();
+                    requestAnimationFrame(main);
+                }else{
+                    requestAnimationFrame(end);
+                }
+            }
+
+            function end(){
+                var canvas = document.getElementById("main");
+                var ctx = canvas.getContext("2d");
+                ctx.beginPath();
+                ctx.fillStyle = "#000000";
+                ctx.strokeStyle = "#000000";
+                ctx.fillRect(0, 0, 1000, 500);
+                ctx.stroke();
+                if(score[0] == 5){
+                    score = 1;
+                }else if (score[1] == 5){
+                    score = 2;
+                }
+                ctx.font = '48px serif';
+                ctx.fillStyle = "#FFFFFF";
+                ctx.textAlign = "center";
+                ctx.fillText('Player'+score+' win!', 500, 250);
+                requestAnimationFrame(end);
+            }
+        </script>
+</head>
+    <body onload="init()">
+        <canvas id = "main" width="1000px" height="500px"></canvas>
+    </body>
+</html>
