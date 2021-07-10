@@ -5,10 +5,15 @@
         <script type="text/javascript" scr="https://github.com/mini2317/mini2317.github.io/blob/master/key.js"></script>
         <script>
             INIT ={
-                x : 30,
-                y : 100
+                x : 50,
+                y : 500 - 100
             };
-            G = 3;
+            cam = {
+                x : 500,
+                y : 250
+            };
+            G = 1;
+            Pc = 1/2;
 
             function getRandomInt(min, max) {
                 min = Math.ceil(min);
@@ -189,6 +194,24 @@
                     }
                 }
             });
+
+            
+            class Element{
+                static ParseToRadian(degree){
+                    return Math.PI*(degree-90)/180
+                }
+            
+                static moveTo(x,y,delta,degree){
+                    return {x:x + Math.cos(this.ParseToRadian(degree))*delta, y:y + Math.sin(this.ParseToRadian(degree))*delta}
+                }
+
+                static moveToTheta(x,y,delta,theta){
+                    return {x:x + Math.cos(theta)*delta, y:y + Math.sin(theta)*delta}
+                }
+
+                draw(){}
+            }
+
             class Vector{
                 constructor(theta,k){
                     this.theta = theta;
@@ -202,36 +225,21 @@
                     }
                 }
 
-                toVector(PVector){
-                    return {
+                getSize(){
+                    return k
+                }
 
-                    }
+                static toVector(PVector){
+                    return new Vector(Math.atan2(PVector.y , PVector.x), Math.sqrt(PVector.x**2 + PVector.y**2))
                 }
             }
-            class Element{
-                constructor(x, y, width, height){
-                    this.x = x
-                    this.y = y
-                    this.width = width
-                    this.height = height
-                }
-            
-                static ParseToRadian(degree){
-                    return Math.PI*(degree-90)/180
-                }
-            
-                static moveTo(x,y,delta,degree){
-                    return {x:x + Math.cos(this.ParseToRadian(degree))*delta, y:y + Math.sin(this.ParseToRadian(degree))*delta}
-                }
 
-                draw(){}
-            }
-
-            class Ball extends Element{
-                constructor(x,y,degree,v){
-                    super(x,y,25,25);
-                    this.degree = degree;
-                    this.v = v;
+            class Ball{
+                constructor(x,y){
+                    this.x = x;
+                    this.y = y;
+                    this.r = 10;
+                    this.v = new Pysics(INIT,Pc,this).get_vector();
                 }
             
                 draw(){
@@ -240,60 +248,93 @@
                     ctx.beginPath();
                     ctx.fillStyle = "#FFFFFF";
                     ctx.strokeStyle = "#FFFFFF";
-                    ctx.arc(this.x, this.y, this.width/2, 0, 2 * Math.PI);
+                    ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI);
                     ctx.fill();
                     ctx.stroke();
                 }
 
                 move(){
-                    let moved = Element.moveTo(this.x,this.y,this.v,this.degree);
+                    let moved = Element.moveToTheta(this.x,this.y,this.v.k,this.v.theta);
                     this.x = moved.x;
                     this.y = moved.y;
-
+                    if (this.x <= 0){
+                        this.x = 0;
+                    }
+                    if (this.x >= 1000){
+                        this.x = 1000;
+                    }
+                    if (this.y <= 0){
+                        this.y = 0;
+                    }
+                    if (this.y >= 500){
+                        this.y = 500;
+                    }
+                    this.v = this.v.toPVector(this.v.theta,this.v.k);
+                    this.v.y += G;
+                    this.v = Vector.toVector(this.v);
                 }
             }
 
             class Pysics{
-                static get_theta(init){
-                    return -Math.atan2((init.y-cursor.y) / (init.x-cursor.x))
+                constructor(init,powerContant,ball){
+                    this.init = init;
+                    this.powerContant = powerContant;
+                    this.theta = this.get_theta();
+                    this.ball = ball;
+                    this.g = G;
                 }
 
-                static get_v(init,powerContant){
-                    return powerContant * (Math.sqrt((init.y-cursor.y)**2+(init.x-cursor.x)**2))
+                get_theta(){
+                    return Math.atan2((this.init.y-cursor.y),(this.init.x-cursor.x))
                 }
 
-                static get_th(theta,v,g){
-                    return Math.sin(theta) * v / g
+                get_vector(){
+                    return new Vector(this.get_theta(), this.powerContant * (Math.sqrt((this.init.y-cursor.y)**2+(this.init.x-cursor.x)**2)))
                 }
 
-                static get_h(init,powerContant,theta,g){
-                    v = Pysics.get_v(init,powerContant);
-                    return {x : Math.cos(theta) * v * Pysics.get_th(theta,v,g),
-                            y : Math.sin(theta) * v / (2 * g)}
+                get_th(){
+                    v = this.get_vector();
+                    return Math.sin(v.theta) * v.k / this.g
                 }
 
-                static get_ts(init,powerContant,theta,g){
-                    v = Pysics.get_v(init,powerContant);
-                    return (v/g)*(Math.sqrt(Math.sin(theta)+(2*g*init.y)/(v**2))+Math.sin(theta))
+                get_H(){
+                    v = this.get_vector();
+                    return {x : Math.cos(v.theta) * v.k * this.get_th() + this.init.x,
+                            y : this.get_th() * v.k / 2 + this.init.y}
                 }
-                static get_sx(init,powerContant,theta,g){
-                    ts = Pysics.get_theta(init,powerContant,theta,g);
-                    return Math.cos(theta) * v * ts
+
+                get_tf(){
+                    v = this.get_vector();
+                    return Math.sqrt(2*(this.get_H.y - this.ball.r)/this.g)
+                }
+
+                get_F(){
+                    v = this.get_vector();
+                    return {
+                        x : Math.cos(v.theta) * v.k * (this.get_th() + this.get_tf(this.ball)) + this.init.x,
+                        y : 0
+                    }
+                }
+
+                getDots(){
+                    return {
+                        O : {
+                            x : this.init.x,
+                            y : this.init.y
+                        },
+                        H : this.get_H(),
+                        F : this.get_F()
+                    }
                 }
             }
 
             function init(){
-                var canvas = document.getElementById("main");
-                var ctx = canvas.getContext("2d");
-                ball = new Ball(500,250,45,10);
-                ctx.beginPath();
-                ctx.fillStyle = "#000000";
-                ctx.strokeStyle = "#000000";
-                ctx.fillRect(0, 0, 1000, 500);
-                ctx.stroke();
+                //ball = new Ball(500,250,45,10);
+                Calculator = new Pysics(INIT,Pc,new Ball(INIT.x,INIT.y));
                 requestAnimationFrame(main);
             }
-
+            
+            balls = []
             function main(){
                 var canvas = document.getElementById("main");
                 var ctx = canvas.getContext("2d");
@@ -302,45 +343,19 @@
                 ctx.strokeStyle = "#000000";
                 ctx.fillRect(0, 0, 1000, 500);
                 ctx.stroke();
-                player1.move();
-                player2.move();
-                ball.collision(player1,player2);
-                ball.move();
-                if (ball.x - ball.width/2 <= 0){
-                    ball = new Ball(500,250,45,10);
-                    score[1] += 1;
-                }else if(ball.x + ball.width/2 >= 1000){
-                    ball = new Ball(500,250,45,10);
-                    score[0] += 1;
-                }
-                if (!(score.includes(5))){
-                    ball.draw();
-                    player1.draw();
-                    player2.draw();
-                    requestAnimationFrame(main);
-                }else{
-                    requestAnimationFrame(end);
-                }
-            }
-
-            function end(){
-                var canvas = document.getElementById("main");
-                var ctx = canvas.getContext("2d");
                 ctx.beginPath();
-                ctx.fillStyle = "#000000";
-                ctx.strokeStyle = "#000000";
-                ctx.fillRect(0, 0, 1000, 500);
+                ctx.fillStyle = "#FF0000";
+                ctx.fillRect(INIT.x-5, INIT.y-5, 10, 10);
                 ctx.stroke();
-                if(score[0] == 5){
-                    score = 1;
-                }else if (score[1] == 5){
-                    score = 2;
+                if(cursor.click){
+                    balls.push(new Ball(INIT.x,INIT.y));
                 }
-                ctx.font = '48px serif';
-                ctx.fillStyle = "#FFFFFF";
-                ctx.textAlign = "center";
-                ctx.fillText('Player'+score+' win!', 500, 250);
-                requestAnimationFrame(end);
+                balls.forEach(element => {
+                    element.move();
+                    element.draw();
+                });
+                cursor.click = false;
+                requestAnimationFrame(main);
             }
         </script>
 </head>
