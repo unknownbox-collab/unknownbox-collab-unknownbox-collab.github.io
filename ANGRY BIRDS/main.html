@@ -4,21 +4,32 @@
         <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
         <script type="text/javascript" scr="https://github.com/mini2317/mini2317.github.io/blob/master/key.js"></script>
         <script>
-            INIT ={
+            var INIT ={
                 x : 50,
                 y : 500 - 100
             };
-            cam = {
-                x : 500,
-                y : 250
-            };
-            G = 1;
-            Pc = 1/2;
+            var camSize = 1;
+            var G = 1;
+            var Pc = 5;
+            var calculator = 0;
+            var savePos;
 
             function getRandomInt(min, max) {
                 min = Math.ceil(min);
                 max = Math.floor(max);
                 return Math.floor(Math.random() * (max - min)) + min; //최댓값은 제외, 최솟값은 포함
+            }
+            function deepCopyObject(inObject) {
+                var outObject, value, key
+                if(typeof inObject !== "object" || inObject === null) {
+                    return inObject
+                }
+                outObject = Array.isArray(inObject) ? [] : {}
+                for (key in inObject) {
+                    value = inObject[key]
+                    outObject[key] = (typeof value === "object" && value !== null) ? deepCopyObject(value) : value
+                }
+                return outObject
             }
 
             var KEYCODE={
@@ -179,6 +190,7 @@
                 cursor.y = e.y-document.getElementById("main").getBoundingClientRect().top;
             });
             $(document).click(function (evt) {
+                savePos = cursor;
                 cursor.click = true;
             })
             $(document).keydown(function(e) {
@@ -194,7 +206,6 @@
                     }
                 }
             });
-
             
             class Element{
                 static ParseToRadian(degree){
@@ -234,12 +245,65 @@
                 }
             }
 
+            class Arrow{
+                constructor (x,y,v){
+                    this.x = x;
+                    this.y = y;
+                    this.v = v;
+                }
+
+                draw(){
+                    let pv = this.v.toPVector();
+                    var canvas = document.getElementById("main");
+                    var ctx = canvas.getContext("2d");
+                    ctx.beginPath();
+                    ctx.fillStyle = "rgba(255,127,0,120)";
+                    ctx.strokeStyle = "rgba(255,127,0,120)";
+                    ctx.lineWidth = 5/camSize;
+                    ctx.moveTo(this.x/camSize, 500-(500-this.y)/camSize);
+                    let new_x = (this.x + pv.x)/camSize;
+                    let new_y = 500-(500-(this.y + pv.y))/camSize;
+                    ctx.lineTo(new_x, new_y);
+                    let moved = Element.moveToTheta(new_x,new_y,20/camSize,this.v.theta + Element.ParseToRadian(-30));
+                    ctx.lineTo(moved.x,moved.y);
+                    ctx.moveTo(new_x,new_y);
+                    moved = Element.moveToTheta(new_x,new_y,20/camSize,this.v.theta - Element.ParseToRadian(-30));
+                    ctx.lineTo(moved.x, moved.y);
+                    ctx.stroke();
+                }
+            }
+
+            class BallIllusion{
+                constructor(x,y,r,v){
+                    this.x = x;
+                    this.y = y;
+                    this.r = r;
+                    this.v = v;
+                }
+
+                draw(){
+                    var canvas = document.getElementById("main");
+                    var ctx = canvas.getContext("2d");
+                    ctx.beginPath();
+                    ctx.fillStyle = "rgba(255,255,255,120)";
+                    ctx.strokeStyle = "rgba(255,255,255,120)";
+                    ctx.arc(this.x/camSize,  500 - (500 - this.y)/camSize, this.r/camSize, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            }
+
             class Ball{
-                constructor(x,y){
+                constructor(x,y,cursorIn){
                     this.x = x;
                     this.y = y;
                     this.r = 10;
-                    this.v = new Pysics(INIT,Pc,this).get_vector();
+                    this.cursorIn = deepCopyObject(cursorIn);
+                    console.log(cursorIn);
+                    this.mod = true;
+                    this.history = [];
+                    this.v = new Pysics(INIT,Pc,this,this.cursorIn).get_vector();
+                    calculator = new Pysics(INIT,Pc,this,this.cursorIn);
                 }
             
                 draw(){
@@ -248,75 +312,128 @@
                     ctx.beginPath();
                     ctx.fillStyle = "#FFFFFF";
                     ctx.strokeStyle = "#FFFFFF";
-                    ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI);
+                    ctx.arc(this.x/camSize,  500 - (500 - this.y)/camSize, this.r/camSize, 0, 2 * Math.PI);
                     ctx.fill();
                     ctx.stroke();
+                    new Arrow(this.x,this.y,this.v).draw();
                 }
 
                 move(){
-                    let moved = Element.moveToTheta(this.x,this.y,this.v.k,this.v.theta);
-                    this.x = moved.x;
-                    this.y = moved.y;
-                    if (this.x <= 0){
-                        this.x = 0;
+                    if (this.mod){
+                        this.history.push(new BallIllusion(this.x, this.y, this.r, this.v));
+                        if (this.y + this.r < 500){
+                            let moved = Element.moveToTheta(this.x,this.y,this.v.k,this.v.theta);
+                            this.x = moved.x;
+                            this.y = moved.y;
+                            
+                            this.v = this.v.toPVector(this.v.theta,this.v.k);
+                            this.v.y += G;
+                            this.v = Vector.toVector(this.v);
+                            let distance = Math.sqrt(this.x ** 2 + (-this.y+500) ** 2);
+                            if (distance > 500){
+                                camSize = distance/500;
+                            }else{
+                                camSize = 1;
+                            }
+                        }else{
+                            this.y = 500 - this.r;
+                            this.mod = false;
+                        }
+                    }else{
+                        this.calculate();
                     }
-                    if (this.x >= 1000){
-                        this.x = 1000;
-                    }
-                    if (this.y <= 0){
-                        this.y = 0;
-                    }
-                    if (this.y >= 500){
-                        this.y = 500;
-                    }
-                    this.v = this.v.toPVector(this.v.theta,this.v.k);
-                    this.v.y += G;
-                    this.v = Vector.toVector(this.v);
+                }
+
+                calculate(){
+                    let pick = new BallIllusion(0,5000,1,0);
+                    this.history.forEach(element => {
+                        element.draw();
+                        if(element.y < pick.y){
+                            pick = element;
+                        }
+                    });
+                    pick.draw();
+                    let first = this.history[0];
+                    let last = this.history[this.history.length-1];
+                    first.draw();
+                    last.draw();
+                    var canvas = document.getElementById("main");
+                    var ctx = canvas.getContext("2d");
+                    ctx.font = '11px serif';
+                    ctx.fillStyle = "#FFFFFF";
+                    ctx.textAlign = "left";
+                    ctx.fillText('pick.x : ' + pick.x, 10, 11);
+                    ctx.fillText('pick.y : ' + (500 - pick.y), 10, 22);
+                    ctx.fillText('last.x : ' + last.x, 10, 33);
+                    let dots = calculator.getDots();
+                    ctx.fillText('---------', 10, 44);
+                    ctx.fillText('pick.x : '+dots.H.x, 10, 55);
+                    ctx.fillText('pick.y : '+ dots.H.y, 10, 66);
+                    ctx.fillText('last.x : '+dots.F.x, 10, 77);
                 }
             }
 
             class Pysics{
-                constructor(init,powerContant,ball){
+                constructor(init,powerContant,ball,cursorIn){
                     this.init = init;
                     this.powerContant = powerContant;
+                    this.cursor = deepCopyObject(cursorIn);
                     this.theta = this.get_theta();
                     this.ball = ball;
                     this.g = G;
                 }
 
                 get_theta(){
-                    return Math.atan2((this.init.y-cursor.y),(this.init.x-cursor.x))
+                    let x = this.cursor.x;
+                    let y = this.cursor.y;
+                    return Math.atan2((this.init.y-y),(this.init.x-x))
                 }
 
                 get_vector(){
-                    return new Vector(this.get_theta(), this.powerContant * (Math.sqrt((this.init.y-cursor.y)**2+(this.init.x-cursor.x)**2)))
+                    let x = this.cursor.x;
+                    let y = this.cursor.y;
+                    return new Vector(this.get_theta(), this.powerContant * Math.sqrt((Math.sqrt((this.init.y - y)**2+(this.init.x - x)**2))))
                 }
 
                 get_th(){
-                    v = this.get_vector();
-                    return Math.sin(v.theta) * v.k / this.g
+                    let x = this.cursor.x;
+                    let y = this.cursor.y;
+                    let v = this.get_vector();
+                    if (Math.sin(-v.theta) * v.k / this.g >= 0){
+                        return Math.sin(-v.theta) * v.k / this.g
+                    }else{
+                        return 0
+                    }
                 }
 
                 get_H(){
-                    v = this.get_vector();
-                    return {x : Math.cos(v.theta) * v.k * this.get_th() + this.init.x,
-                            y : this.get_th() * v.k / 2 + this.init.y}
+                    let x = this.cursor.x;
+                    let y = this.cursor.y;
+                    let v = this.get_vector();
+                    return {x : Math.cos(-v.theta) * v.k * this.get_th() + this.init.x,
+                            y : 500 - (this.get_th() * Math.sin(v.theta) * v.k / 2 + this.init.y)}
                 }
 
                 get_tf(){
-                    v = this.get_vector();
-                    return Math.sqrt(2*(this.get_H.y - this.ball.r)/this.g)
+                    let x = this.cursor.x;
+                    let y = this.cursor.y;
+                    let v = this.get_vector();
+                    return Math.sqrt(2*(this.get_H().y - this.ball.r)/this.g)
                 }
 
                 get_F(){
-                    v = this.get_vector();
+                    let x = this.cursor.x;
+                    let y = this.cursor.y;
+                    let v = this.get_vector();
                     return {
-                        x : Math.cos(v.theta) * v.k * (this.get_th() + this.get_tf(this.ball)) + this.init.x,
+                        x : Math.cos(-v.theta) * v.k * (this.get_th() + this.get_tf()) + this.init.x,
                         y : 0
                     }
                 }
 
                 getDots(){
+                    let x = this.cursor.x;
+                    let y = this.cursor.y;
                     return {
                         O : {
                             x : this.init.x,
@@ -326,11 +443,23 @@
                         F : this.get_F()
                     }
                 }
+
+                getParabola(pos1,pos2,pos3){
+                    let a = pos1.x;
+                    let b = pos1.y;
+                    let c = pos2.x;
+                    let d = pos2.y;
+                    let e = pos3.x;
+                    let f = pos3.y;
+
+                    let A = (g*(a**2 - c**2) + d*(f**2-a**2)+b*(c**2-f**2))/(2*((g-d)*a+(b-g)*c+(d-b)*f));
+                    let C = (b-d)/(a**2-c**2+2*A*(c-a));
+                    let B = d-C*(c-A)**2;
+                    return (x)=>(C*(x-A)**2+B)
+                }
             }
 
             function init(){
-                //ball = new Ball(500,250,45,10);
-                Calculator = new Pysics(INIT,Pc,new Ball(INIT.x,INIT.y));
                 requestAnimationFrame(main);
             }
             
@@ -345,10 +474,18 @@
                 ctx.stroke();
                 ctx.beginPath();
                 ctx.fillStyle = "#FF0000";
-                ctx.fillRect(INIT.x-5, INIT.y-5, 10, 10);
+                rectSize = 40 / camSize;
+                ctx.fillRect(INIT.x/camSize - rectSize/2, 500 - (500 - INIT.y)/camSize - rectSize/2, rectSize, rectSize);
                 ctx.stroke();
-                if(cursor.click){
-                    balls.push(new Ball(INIT.x,INIT.y));
+                if(cursor.click == true){
+                    if(balls.length != 0){
+                        if(balls[0].mod == false){
+                            balls.pop();
+                            camSize = 1;
+                        }
+                    }else{
+                        balls.push(new Ball(INIT.x,INIT.y,savePos));
+                    }
                 }
                 balls.forEach(element => {
                     element.move();
