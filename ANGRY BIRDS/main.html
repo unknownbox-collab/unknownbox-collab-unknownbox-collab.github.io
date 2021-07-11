@@ -12,7 +12,7 @@
             var G = 1;
             var Pc = 5;
             var calculator = 0;
-            var savePos;
+            var savePos = {x:0,y:0};
 
             function getRandomInt(min, max) {
                 min = Math.ceil(min);
@@ -185,14 +185,17 @@
                 y : 0,
                 click:false
             };
+
             window.addEventListener('mousemove',function(e){
                 cursor.x = e.x-document.getElementById("main").getBoundingClientRect().left;
                 cursor.y = e.y-document.getElementById("main").getBoundingClientRect().top;
             });
+
             $(document).click(function (evt) {
                 savePos = cursor;
                 cursor.click = true;
             })
+
             $(document).keydown(function(e) {
                 for (var i = 0; i < Object.keys(Key).length; i++) {
                     if (e.keyCode == KEYCODE[Object.keys(KEYCODE)[i]]) {
@@ -298,8 +301,8 @@
                     this.x = x;
                     this.y = y;
                     this.r = 10;
+                    this.text = 0;
                     this.cursorIn = deepCopyObject(cursorIn);
-                    console.log(cursorIn);
                     this.mod = true;
                     this.history = [];
                     this.v = new Pysics(INIT,Pc,this,this.cursorIn).get_vector();
@@ -321,27 +324,48 @@
                 move(){
                     if (this.mod){
                         this.history.push(new BallIllusion(this.x, this.y, this.r, this.v));
+                        let moved = Element.moveToTheta(this.x,this.y,this.v.k,this.v.theta);
+                        this.x = moved.x;
+                        this.y = moved.y;
                         if (this.y + this.r < 500){
-                            let moved = Element.moveToTheta(this.x,this.y,this.v.k,this.v.theta);
-                            this.x = moved.x;
-                            this.y = moved.y;
-                            
                             this.v = this.v.toPVector(this.v.theta,this.v.k);
                             this.v.y += G;
                             this.v = Vector.toVector(this.v);
                             let distance = Math.sqrt(this.x ** 2 + (-this.y+500) ** 2);
-                            if (distance > 500){
-                                camSize = distance/500;
-                            }else{
-                                camSize = 1;
-                            }
+                            (distance > 500 && camSize<distance/500)?camSize = distance/500:null;
                         }else{
-                            this.y = 500 - this.r;
-                            this.mod = false;
+                            let moved = Element.moveToTheta(this.x,this.y,this.v.k,this.v.theta+Math.PI);
+                            this.x = moved.x;
+                            this.y = moved.y;
+                            for (let i = 0; i < 100; i++) {
+                                moved = Element.moveToTheta(this.x,this.y,this.v.k/100,this.v.theta);
+                                this.x = moved.x;
+                                this.y = moved.y;
+                                this.v = this.v.toPVector(this.v.theta,this.v.k);
+                                this.v.y += G/100;
+                                this.v = Vector.toVector(this.v);
+                                let distance = Math.sqrt(this.x ** 2 + (-this.y+500) ** 2);
+                                (distance > 500 && camSize<distance/500)?camSize = distance/500:null;
+                                if(this.y + this.r >= 500){
+                                    this.history.push(new BallIllusion(this.x, this.y, this.r, this.v));
+                                    this.mod = false;
+                                    break;
+                                }
+                            }
                         }
                     }else{
                         this.calculate();
                     }
+                }
+
+                drawText(data){
+                    this.text += 1;
+                    var canvas = document.getElementById("main");
+                    var ctx = canvas.getContext("2d");
+                    ctx.font = '11px serif';
+                    ctx.fillStyle = "#FFFFFF";
+                    ctx.textAlign = "left";
+                    ctx.fillText(data, 10, 11*this.text);
                 }
 
                 calculate(){
@@ -357,19 +381,17 @@
                     let last = this.history[this.history.length-1];
                     first.draw();
                     last.draw();
-                    var canvas = document.getElementById("main");
-                    var ctx = canvas.getContext("2d");
-                    ctx.font = '11px serif';
-                    ctx.fillStyle = "#FFFFFF";
-                    ctx.textAlign = "left";
-                    ctx.fillText('pick.x : ' + pick.x, 10, 11);
-                    ctx.fillText('pick.y : ' + (500 - pick.y), 10, 22);
-                    ctx.fillText('last.x : ' + last.x, 10, 33);
+                    this.text = 0;
+                    this.drawText('pick.x : ' + pick.x);
+                    this.drawText('pick.y : ' + (500 - pick.y));
+                    this.drawText('last.x : ' + last.x);
                     let dots = calculator.getDots();
-                    ctx.fillText('---------', 10, 44);
-                    ctx.fillText('pick.x : '+dots.H.x, 10, 55);
-                    ctx.fillText('pick.y : '+ dots.H.y, 10, 66);
-                    ctx.fillText('last.x : '+dots.F.x, 10, 77);
+                    this.drawText('---------');
+                    this.drawText('pick.x : '+dots.H.x);
+                    this.drawText('pick.y : '+ dots.H.y);
+                    this.drawText('last.x : '+dots.F.x);
+                    this.drawText(calculator.getParabola(dots.O, dots.H, dots.F)[0]);
+                    return [pick,this.history,deepCopyObject(calculator)]
                 }
             }
 
@@ -452,18 +474,22 @@
                     let e = pos3.x;
                     let f = pos3.y;
 
-                    let A = (g*(a**2 - c**2) + d*(f**2-a**2)+b*(c**2-f**2))/(2*((g-d)*a+(b-g)*c+(d-b)*f));
+                    let A = (f*(a**2 - c**2) + d*(e**2-a**2)+b*(c**2-e**2))/(2*((f-d)*a+(b-f)*c+(d-b)*e));
                     let C = (b-d)/(a**2-c**2+2*A*(c-a));
                     let B = d-C*(c-A)**2;
-                    return (x)=>(C*(x-A)**2+B)
+                    var canvas = document.getElementById("main");
+                    var ctx = canvas.getContext("2d");
+                    //console.log("y = "+C+"*(x-"+A+")^2+"+B);
+                    return ["y = "+C+"*(x-"+A+")**2+"+B,(x)=>(C*(x-A)**2+B)]
                 }
             }
 
             function init(){
                 requestAnimationFrame(main);
             }
-            
-            balls = []
+            achieve = [];
+            balls = [];
+            var i = 0;
             function main(){
                 var canvas = document.getElementById("main");
                 var ctx = canvas.getContext("2d");
@@ -477,13 +503,17 @@
                 rectSize = 40 / camSize;
                 ctx.fillRect(INIT.x/camSize - rectSize/2, 500 - (500 - INIT.y)/camSize - rectSize/2, rectSize, rectSize);
                 ctx.stroke();
-                if(cursor.click == true){
+                let moved = Element.moveTo(INIT.x,INIT.y,100,i);
+                savePos.x = moved.x;
+                savePos.y = moved.y;
+                if (cursor.click == false){
                     if(balls.length != 0){
                         if(balls[0].mod == false){
-                            balls.pop();
+                            achieve.push(balls.pop().calculate());
                             camSize = 1;
                         }
                     }else{
+                        i -= 1;
                         balls.push(new Ball(INIT.x,INIT.y,savePos));
                     }
                 }
@@ -492,7 +522,30 @@
                     element.draw();
                 });
                 cursor.click = false;
-                requestAnimationFrame(main);
+                if(i>=-180){
+                    requestAnimationFrame(main);
+                }else{
+                    calculate();
+                }
+            }
+
+            function calculate(){
+                far = 0;
+                for (let i = 0; i < achieve.length; i++) {
+                    if(achieve[far][1].slice(-1)[0].x <= achieve[i][1].slice(-1)[0].x){
+                        far = i;
+                    }
+                }
+                console.log(-180+(far+1));
+                console.log(achieve[far][1]);
+                highest = 0;
+                for (let i = 0; i < achieve.length; i++) {
+                    if(achieve[highest][0].y >= achieve[i][0].y){
+                        highest = i;
+                    }
+                }
+                console.log(180-(highest+1));
+                console.log(achieve[highest]);
             }
         </script>
 </head>
