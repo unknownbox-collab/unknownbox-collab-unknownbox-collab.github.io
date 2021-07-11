@@ -362,7 +362,7 @@
                     this.text += 1;
                     var canvas = document.getElementById("main");
                     var ctx = canvas.getContext("2d");
-                    ctx.font = '11px serif';
+                    ctx.font = '11px consolas';
                     ctx.fillStyle = "#FFFFFF";
                     ctx.textAlign = "left";
                     ctx.fillText(data, 10, 11*this.text);
@@ -382,13 +382,13 @@
                     first.draw();
                     last.draw();
                     this.text = 0;
-                    this.drawText('pick.x : ' + pick.x);
-                    this.drawText('pick.y : ' + (500 - pick.y));
+                    this.drawText('peak.x : ' + pick.x);
+                    this.drawText('peak.y : ' + (500 - pick.y));
                     this.drawText('last.x : ' + last.x);
                     let dots = calculator.getDots();
                     this.drawText('---------');
-                    this.drawText('pick.x : '+dots.H.x);
-                    this.drawText('pick.y : '+ dots.H.y);
+                    this.drawText('peak.x : '+dots.H.x);
+                    this.drawText('peak.y : '+ dots.H.y);
                     this.drawText('last.x : '+dots.F.x);
                     this.drawText(calculator.getParabola(dots.O, dots.H, dots.F)[0]);
                     return [pick,this.history,deepCopyObject(calculator)]
@@ -480,7 +480,7 @@
                     var canvas = document.getElementById("main");
                     var ctx = canvas.getContext("2d");
                     //console.log("y = "+C+"*(x-"+A+")^2+"+B);
-                    return ["y = "+C+"*(x-"+A+")**2+"+B,(x)=>(C*(x-A)**2+B)]
+                    return ["y = "+C+"*(x-"+A+")^2+"+B,(x)=>(C*(x-A)**2+B)]
                 }
             }
 
@@ -503,10 +503,10 @@
                 rectSize = 40 / camSize;
                 ctx.fillRect(INIT.x/camSize - rectSize/2, 500 - (500 - INIT.y)/camSize - rectSize/2, rectSize, rectSize);
                 ctx.stroke();
-                let moved = Element.moveTo(INIT.x,INIT.y,100,i);
+                /*let moved = Element.moveTo(INIT.x,INIT.y,100,-135);
                 savePos.x = moved.x;
-                savePos.y = moved.y;
-                if (cursor.click == false){
+                savePos.y = moved.y;*/
+                if (cursor.click){
                     if(balls.length != 0){
                         if(balls[0].mod == false){
                             achieve.push(balls.pop().calculate());
